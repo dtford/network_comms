@@ -4,10 +4,29 @@
 
 #include "comms_args.h"
 
+#define OK			0
+#define INIT_ERR	1
+#define REQ_ERR		2
+
 int main(int argc, char **argv)
 {
 	CommsArgsReader argsReader(argc, argv);
-	
+	CURL *curl;
+	CURLcode res;
+
+	curl = curl_easy_init();
+
+	if(!curl)
+	{
+		return INIT_ERR;
+	}
+
+	if(curl && !argsReader.getURL().empty())
+	{
+		curl_easy_setopt(curl, CURLOPT_URL, argsReader.getURL().c_str());
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	}
+
 	switch(argsReader.getCommand() )
 	{
 		case CommsArgsReader::POST:
@@ -16,6 +35,19 @@ int main(int argc, char **argv)
 		}
 		case CommsArgsReader::GET:
 		{
+			curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+			res = curl_easy_perform(curl);
+			long response_code;
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+			std::cout << "Get result code: " << response_code << std::endl;
+			if( res != CURLE_OK) 
+			{
+				std::cerr << "CURLcode: " << res << std::endl;
+				return REQ_ERR;
+			}
+			else
+			{
+			}
 			break;
 		}
 		case CommsArgsReader::PUT:
@@ -43,4 +75,9 @@ int main(int argc, char **argv)
 			std::cout << "  TEXT\t\t\t free text field to be included in the request.\n";
 		}
 	}
+	if(curl) 
+	{
+		curl_easy_cleanup(curl);
+	}
+	return OK;
 }
